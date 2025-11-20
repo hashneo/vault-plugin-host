@@ -423,6 +423,16 @@ func (h *PluginHost) GetUsageInfo(port string) string {
 	info.WriteString("\nSystem endpoints:\n")
 	info.WriteString("  GET    /v1/sys/health                           - Check plugin health\n")
 	info.WriteString("  GET    /v1/sys/storage                          - View storage contents\n")
+	info.WriteString("  GET    /v1/sys/plugins/catalog/openapi          - Get OpenAPI specification\n")
+	info.WriteString(fmt.Sprintf("\nWeb UI:\n"))
+	info.WriteString(fmt.Sprintf("  http://localhost:%s/ui/                       - Access web interface\n", port))
 
 	return info.String()
+}
+
+// GetOpenAPIDoc returns the stored OpenAPI document
+func (h *PluginHost) GetOpenAPIDoc() interface{} {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.oasDoc
 }

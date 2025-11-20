@@ -5,8 +5,10 @@ package main
 
 import (
 	"bufio"
+	"embed"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +16,9 @@ import (
 	"path/filepath"
 	"syscall"
 )
+
+//go:embed web
+var webFS embed.FS
 
 var (
 	pluginPath   = flag.String("plugin", "", "Path to plugin binary")
@@ -101,21 +106,47 @@ func main() {
 		os.Exit(0)
 	}()
 
-	// Setup HTTP handlers
+	// CORS middleware
+	corsMiddleware := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+			// Handle preflight requests
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next(w, r)
+		}
+	}
+
+	// Setup HTTP handlers with CORS
 	mountPath := "/v1/" + *mount + "/"
-	http.HandleFunc(mountPath, host.handler.HandleRequest)
-	http.HandleFunc("/v1/sys/health", host.handler.HandleHealth)
-	http.HandleFunc("/v1/sys/storage", host.handler.HandleStorage)
+	http.HandleFunc(mountPath, corsMiddleware(host.handler.HandleRequest))
+	http.HandleFunc("/v1/sys/health", corsMiddleware(host.handler.HandleHealth))
+	http.HandleFunc("/v1/sys/storage", corsMiddleware(host.handler.HandleStorage))
+	http.HandleFunc("/v1/sys/plugins/catalog/openapi", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		host.handler.HandleOpenAPI(w, r, host.GetOpenAPIDoc())
+	}))
+
+	// Serve embedded web UI
+	webContentFS, err := fs.Sub(webFS, "web")
+	if err == nil {
+		http.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.FS(webContentFS))))
+	}
 
 	// Root handler with usage info
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			w.Header().Set("Content-Type", "text/plain")
 			fmt.Fprint(w, host.GetUsageInfo(*port))
 		} else {
 			host.handler.HandleRequest(w, r)
 		}
-	})
+	}))
 
 	addr := ":" + *port
 	fmt.Printf("Server ready! Try:\n")

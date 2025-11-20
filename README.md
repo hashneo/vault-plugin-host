@@ -10,6 +10,7 @@ A standalone HTTP server for testing and developing HashiCorp Vault plugins with
 - **Plugin Configuration**: Pass configuration options to plugins via JSON or key=value format
 - **In-Memory Storage**: Provides in-memory storage backend for plugin data
 - **HTTP API**: RESTful API that mimics Vault's HTTP interface
+- **Web UI**: Built-in dark mode web interface for plugin management and monitoring
 - **Health & Storage Endpoints**: Built-in endpoints for monitoring and inspecting storage
 
 ## Installation
@@ -128,11 +129,13 @@ Content-Type: application/json
 ### System Endpoints
 
 #### Health Check
+
 ```bash
 GET http://localhost:8300/v1/sys/health
 ```
 
 Returns plugin status:
+
 ```json
 {
   "plugin_running": true,
@@ -141,45 +144,83 @@ Returns plugin status:
 ```
 
 #### Storage Inspection
+
 ```bash
 GET http://localhost:8300/v1/sys/storage
 ```
 
-Returns all data stored by the plugin:
+Returns all data stored by the plugin in array format:
+
 ```json
-{
-  "storage": {
-    "key1": "value1",
-    "key2": "value2"
-  }
-}
+[
+  {"key": "key1", "value": "value1"},
+  {"key": "key2", "value": "value2"}
+]
 ```
+
+#### OpenAPI Schema
+
+```bash
+GET http://localhost:8300/v1/sys/plugins/catalog/openapi
+```
+
+Returns the plugin's OpenAPI specification document.
+
+### Web UI
+
+The plugin host includes an embedded web interface accessible at:
+
+```bash
+http://localhost:8300/ui/
+```
+
+The web UI provides:
+
+- **Dashboard Tab**: View plugin health, storage metrics, and configuration
+- **OpenAPI Tab**: Browse the plugin's OpenAPI schema and available endpoints
+- **Storage Tab**: Inspect all key-value pairs stored by the plugin
+- **Dark Mode**: Modern dark theme interface built with Bootstrap 5
+
+The UI communicates with the backend via the `/v1/` API endpoints and updates in real-time.
 
 ## Example Workflow
 
+### Using the Web UI
+
 1. **Start the plugin host:**
+
 ```bash
 ./bin/vault-plugin-host -plugin ./my-auth-plugin -v
 ```
 
-2. **View available endpoints:**
+2. **Open the web interface:**
+
+Navigate to `http://localhost:8300/ui/` in your browser to access the dashboard, view OpenAPI schema, and inspect storage.
+
+### Using curl
+
+1. **View available endpoints:**
+
 ```bash
 curl http://localhost:8300/
 ```
 
-3. **Call plugin endpoints:**
+2. **Call plugin endpoints:**
+
 ```bash
 curl -X POST http://localhost:8300/v1/plugin/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"secret"}'
 ```
 
-4. **Check plugin health:**
+3. **Check plugin health:**
+
 ```bash
 curl http://localhost:8300/v1/sys/health
 ```
 
-5. **Inspect storage:**
+4. **Inspect storage:**
+
 ```bash
 curl http://localhost:8300/v1/sys/storage
 ```
@@ -209,7 +250,7 @@ Configuration passed via the `-config` flag is provided to the plugin through th
 
 ## Project Structure
 
-```
+```text
 vault-plugin-host/
 ├── main.go              # Entry point and CLI setup
 ├── plugin_host.go       # Plugin lifecycle management
@@ -219,8 +260,12 @@ vault-plugin-host/
 ├── handlers/            # HTTP handlers package
 │   ├── handlers.go      # HTTP request handlers
 │   └── handlers_test.go # Handler tests
+├── web/                 # Embedded web UI
+│   ├── index.html       # Bootstrap 5 dark mode UI
+│   └── app.js           # JavaScript for API interactions
 ├── *_test.go            # Test files
 ├── Makefile             # Build and test automation
+├── Dockerfile           # Multi-stage container build
 └── README.md            # This file
 ```
 

@@ -197,7 +197,8 @@ func (h *Handler) HandleStorage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := make(map[string]string)
+	// Return array of key-value objects for frontend
+	data := make([]map[string]string, 0, len(keys))
 	for _, key := range keys {
 		entry, err := h.storage.Get(ctx, key)
 		if err != nil {
@@ -205,12 +206,24 @@ func (h *Handler) HandleStorage(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if entry != nil {
-			data[key] = string(entry.Value)
+			data = append(data, map[string]string{
+				"key":   key,
+				"value": string(entry.Value),
+			})
 		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"storage": data,
-	})
+	json.NewEncoder(w).Encode(data)
+}
+
+// HandleOpenAPI returns the OpenAPI document from the plugin
+func (h *Handler) HandleOpenAPI(w http.ResponseWriter, r *http.Request, oasDoc interface{}) {
+	if oasDoc == nil {
+		http.Error(w, "OpenAPI document not available", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(oasDoc)
 }
