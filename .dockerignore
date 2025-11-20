@@ -1,0 +1,53 @@
+# Git
+.git/
+.gitignore
+
+# Build artifacts
+bin/
+vault-plugin-host
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+*_test.go
+coverage.txt
+coverage.html
+*.test
+*.out
+
+# Documentation
+README.md
+LICENSE
+docs/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Environment files
+.env
+.env.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# Go workspace
+go.work
+go.work.sum
+
+# Makefile (if not needed in container)
+Makefile
