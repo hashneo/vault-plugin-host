@@ -176,9 +176,15 @@ http://localhost:8300/ui/
 
 The web UI provides:
 
-- **Dashboard Tab**: View plugin health, storage metrics, and configuration
-- **OpenAPI Tab**: Browse the plugin's OpenAPI schema and available endpoints
-- **Storage Tab**: Inspect all key-value pairs stored by the plugin
+- **Dashboard Tab**: View plugin health, storage metrics, configuration, and available endpoints
+- **OpenAPI Tab**: Interactive Swagger UI for exploring and testing API endpoints
+  - Browse the plugin's OpenAPI specification
+  - Try out API calls directly from the browser
+  - View request/response examples and schemas
+  - Execute endpoints with custom parameters and request bodies
+  - See real-time responses with status codes and timing
+  - Generate curl commands for any request
+- **Storage Tab**: Inspect all key-value pairs stored by the plugin with filtering and JSON formatting
 - **Dark Mode**: Modern dark theme interface built with Bootstrap 5
 
 The UI communicates with the backend via the `/v1/` API endpoints and updates in real-time.
