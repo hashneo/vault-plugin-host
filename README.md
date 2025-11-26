@@ -75,6 +75,29 @@ Or use key=value pairs:
   -config 'tenant_id=abc123,region=us-west'
 ```
 
+### Understanding Plugin Execution
+
+**Important:** Vault plugins cannot be executed directly from the command line. If you try to run a plugin binary standalone, you'll see:
+
+```
+This binary is a plugin. These are not meant to be executed directly.
+Please execute the program that consumes these plugins, which will
+load any plugins automatically.
+```
+
+The vault-plugin-host automatically sets the required environment variables that plugins need to start:
+
+```bash
+PLUGIN_PROTOCOL_VERSIONS=4
+VAULT_BACKEND_PLUGIN=6669da05-b1c8-4f49-97d9-c8e5bed98e20
+VAULT_PLUGIN_AUTOMTLS_ENABLED=true
+VAULT_VERSION=1.18.0
+```
+
+When you run `./bin/vault-plugin-host -plugin /path/to/plugin-binary`, these variables are automatically configured and the plugin is launched correctly. The plugin host then captures the plugin's connection information and establishes communication via gRPC.
+
+**Note for IDE Users:** If you're running or debugging the vault-plugin-host from an IDE (VS Code, GoLand, etc.), you should also configure these environment variables in your IDE's run/debug configuration to ensure the plugin launches correctly.
+
 ### Attach to Running Plugin
 
 For debugging or development with an already-running plugin process:
