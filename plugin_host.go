@@ -264,6 +264,9 @@ func (h *PluginHost) Start() error {
 	h.client = client
 	h.handler.SetBackend(backend)
 
+	// Initialize backend lifecycle functions
+	h.initializeBackendLifecycle(backend)
+
 	h.logger.Info("plugin started successfully")
 
 	// List all available paths from the plugin
@@ -278,6 +281,8 @@ func (h *PluginHost) Stop() {
 	defer h.mu.Unlock()
 
 	if h.backend != nil {
+		// Call cleanup lifecycle functions
+		h.cleanupBackendLifecycle()
 		h.backend.Cleanup(context.Background())
 	}
 	if h.client != nil {
@@ -294,6 +299,34 @@ func (h *PluginHost) Stop() {
 	h.pluginCmd = nil
 	h.handler.SetBackend(nil)
 	h.logger.Info("plugin stopped")
+}
+
+// initializeBackendLifecycle initializes backend lifecycle functions
+func (h *PluginHost) initializeBackendLifecycle(backend logical.Backend) {
+	ctx := context.Background()
+
+	// Call Initialize method (standard logical.Backend interface)
+	h.logger.Info("calling backend Initialize")
+	if err := backend.Initialize(ctx, &logical.InitializationRequest{
+		Storage: h.storage,
+	}); err != nil {
+		h.logger.Error("Initialize failed", "error", err)
+	}
+}
+
+// cleanupBackendLifecycle handles cleanup of backend lifecycle functions
+func (h *PluginHost) cleanupBackendLifecycle() {
+	if h.backend == nil {
+		return
+	}
+
+	ctx := context.Background()
+
+	// Call InvalidateKey method (standard logical.Backend interface)
+	h.logger.Info("calling backend InvalidateKey for shutdown")
+	h.backend.InvalidateKey(ctx, "shutdown")
+
+	// Note: Cleanup() is called separately in Stop() method
 }
 
 // listPluginPaths displays all paths and operations supported by the plugin
@@ -424,7 +457,7 @@ func (h *PluginHost) GetUsageInfo(port string) string {
 	info.WriteString("  GET    /v1/sys/health                           - Check plugin health\n")
 	info.WriteString("  GET    /v1/sys/storage                          - View storage contents\n")
 	info.WriteString("  GET    /v1/sys/plugins/catalog/openapi          - Get OpenAPI specification\n")
-	info.WriteString(fmt.Sprintf("\nWeb UI:\n"))
+	info.WriteString("\\nWeb UI:\\n")
 	info.WriteString(fmt.Sprintf("  http://localhost:%s/ui/                       - Access web interface\n", port))
 
 	return info.String()
