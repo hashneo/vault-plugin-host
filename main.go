@@ -150,7 +150,8 @@ func main() {
 
 	addr := ":" + *port
 	fmt.Printf("Server ready! Try:\n")
-	fmt.Printf("  curl http://localhost:%s/v1/%s/ \\\n", *port, *mount)
+	fmt.Printf("  curl http://localhost:%s/ \n", *port)
+	fmt.Printf("  curl http://localhost:%s/ui/ (GUI)\n", *port)
 
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Fatalf("Server failed: %v", err)

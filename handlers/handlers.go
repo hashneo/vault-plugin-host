@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -217,13 +218,58 @@ func (h *Handler) HandleStorage(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(data)
 }
 
-// HandleOpenAPI returns the OpenAPI document from the plugin
+// HandleOpenAPI returns the OpenAPI document from the plugin with corrected paths
 func (h *Handler) HandleOpenAPI(w http.ResponseWriter, r *http.Request, oasDoc interface{}) {
 	if oasDoc == nil {
 		http.Error(w, "OpenAPI document not available", http.StatusNotFound)
 		return
 	}
 
+	// Convert to map so we can modify the paths
+	var docMap map[string]interface{}
+	
+	switch v := oasDoc.(type) {
+	case map[string]interface{}:
+		docMap = v
+	case *framework.OASDocument:
+		// Convert OASDocument to map
+		jsonBytes, err := json.Marshal(v)
+		if err != nil {
+			h.logger.Error("Failed to marshal OpenAPI document", "error", err)
+			http.Error(w, "Failed to process OpenAPI document", http.StatusInternalServerError)
+			return
+		}
+		if err := json.Unmarshal(jsonBytes, &docMap); err != nil {
+			h.logger.Error("Failed to unmarshal OpenAPI document", "error", err)
+			http.Error(w, "Failed to process OpenAPI document", http.StatusInternalServerError)
+			return
+		}
+	default:
+		// Try to marshal and unmarshal as fallback
+		jsonBytes, err := json.Marshal(oasDoc)
+		if err != nil {
+			h.logger.Error("Failed to marshal OpenAPI document", "error", err)
+			http.Error(w, "Failed to process OpenAPI document", http.StatusInternalServerError)
+			return
+		}
+		if err := json.Unmarshal(jsonBytes, &docMap); err != nil {
+			h.logger.Error("Failed to unmarshal OpenAPI document", "error", err)
+			http.Error(w, "Failed to process OpenAPI document", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Fix the paths to include /v1/{mount} prefix
+	if paths, ok := docMap["paths"].(map[string]interface{}); ok {
+		newPaths := make(map[string]interface{})
+		for path, pathItem := range paths {
+			// Add /v1/{mount} prefix to each path
+			newPath := fmt.Sprintf("/v1/%s%s", h.mountPath, path)
+			newPaths[newPath] = pathItem
+		}
+		docMap["paths"] = newPaths
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(oasDoc)
+	json.NewEncoder(w).Encode(docMap)
 }
