@@ -1,5 +1,5 @@
-// Copyright (c) 2025 Steven Taylor
-// SPDX-License-Identifier: MIT
+// Copyright 2025 vault-plugin-host Authors
+// SPDX-License-Identifier: Apache-2.0
 
 package handlers
 

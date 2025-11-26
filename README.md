@@ -315,10 +315,8 @@ The project maintains comprehensive test coverage:
 
 This allows plugins to run in isolation without requiring a full Vault installation.
 
-## License
+Copyright 2025 vault-plugin-host Authors
 
-Copyright (c) 2025 Steven Taylor
-
-SPDX-License-Identifier: MIT
+SPDX-License-Identifier: Apache-2.0
 
 See [LICENSE](LICENSE) file for details.
