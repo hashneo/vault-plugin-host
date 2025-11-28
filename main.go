@@ -128,6 +128,9 @@ func main() {
 	http.HandleFunc(mountPath, corsMiddleware(host.handler.HandleRequest))
 	http.HandleFunc("/v1/sys/health", corsMiddleware(host.handler.HandleHealth))
 	http.HandleFunc("/v1/sys/storage", corsMiddleware(host.handler.HandleStorage))
+	http.HandleFunc("/v1/sys/leases/renew", corsMiddleware(host.handler.HandleLeaseRenew))
+	http.HandleFunc("/v1/sys/leases/revoke", corsMiddleware(host.handler.HandleLeaseRevoke))
+	http.HandleFunc("/v1/sys/leases/revoke/", corsMiddleware(host.handler.HandleLeaseRevokeByPath))
 	http.HandleFunc("/v1/sys/plugins/catalog/openapi", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		host.handler.HandleOpenAPI(w, r, host.GetOpenAPIDoc())
 	}))
