@@ -8,6 +8,7 @@ A standalone HTTP server for testing and developing HashiCorp Vault plugins with
 - **Plugin Attachment**: Attach to already-running plugin processes for debugging
 - **Auto-Discovery**: Automatically discovers and displays all plugin paths and operations via OpenAPI schema
 - **Plugin Configuration**: Pass configuration options to plugins via JSON or key=value format
+- **Lease Management**: Full Vault-compatible lease lifecycle with automatic generation, renewal, and revocation
 - **In-Memory Storage**: Provides in-memory storage backend for plugin data
 - **HTTP API**: RESTful API that mimics Vault's HTTP interface
 - **Web UI**: Built-in dark mode web interface for plugin management and monitoring
@@ -188,6 +189,128 @@ GET http://localhost:8300/v1/sys/plugins/catalog/openapi
 ```
 
 Returns the plugin's OpenAPI specification document.
+
+### Lease Management
+
+The plugin host provides full Vault-compatible lease management capabilities. When you perform read operations on plugin endpoints that return sensitive data, leases are automatically generated to track and manage the lifecycle of that data.
+
+#### Automatic Lease Generation
+
+Read operations automatically generate leases with the following format:
+
+```bash
+GET http://localhost:8300/v1/plugin/creds/test
+```
+
+Example response with lease:
+```json
+{
+  "data": {
+    "username": "generated-user",
+    "password": "secret-password"
+  },
+  "lease_id": "plugin/creds/test/92b21cb389fd74c4bf558d44",
+  "lease_duration": 86400,
+  "renewable": true,
+  "request_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "mount_type": "plugin"
+}
+```
+
+#### Lease Renewal
+
+Renew leases to extend their lifetime:
+
+```bash
+curl -X PUT http://localhost:8300/v1/sys/leases/renew \
+  -H "Content-Type: application/json" \
+  -d '{
+    "lease_id": "plugin/creds/test/92b21cb389fd74c4bf558d44",
+    "increment": 3600
+  }'
+```
+
+Response:
+```json
+{
+  "lease_id": "plugin/creds/test/92b21cb389fd74c4bf558d44",
+  "lease_duration": 3600,
+  "renewable": true,
+  "data": {
+    "username": "generated-user",
+    "password": "secret-password"
+  }
+}
+```
+
+#### Lease Revocation
+
+Revoke leases by lease ID (body method):
+
+```bash
+curl -X PUT http://localhost:8300/v1/sys/leases/revoke \
+  -H "Content-Type: application/json" \
+  -d '{
+    "lease_id": "plugin/creds/test/92b21cb389fd74c4bf558d44"
+  }'
+```
+
+Or revoke by path (Vault-compatible URL format):
+
+```bash
+curl -X PUT http://localhost:8300/v1/sys/leases/revoke/plugin/creds/test/92b21cb389fd74c4bf558d44
+```
+
+Both methods return `204 No Content` on successful revocation.
+
+#### Lease Operations with Plugin Notification
+
+**Important**: The lease system notifies your plugin about lease operations:
+
+- **Renewal**: Plugin receives `RenewOperation` with the original secret and lease metadata
+- **Revocation**: Plugin receives `RevokeOperation` to clean up resources
+- **Error Handling**: If plugin renewal fails, the lease renewal is rejected
+
+Your plugin should handle these operations to properly manage resources:
+
+```go
+// In your plugin's HandleRequest method
+switch req.Operation {
+case logical.RenewOperation:
+    // Handle lease renewal - validate the secret is still valid
+    return h.handleRenew(ctx, req)
+case logical.RevokeOperation:
+    // Handle lease revocation - clean up resources
+    return h.handleRevoke(ctx, req)
+}
+```
+
+#### Lease ID Format
+
+Lease IDs follow Vault's standard format: `{mount_path}/{endpoint_path}/{random_string}`
+
+Examples:
+- `plugin/creds/database/a1b2c3d4e5f67890`
+- `myauth/login/user123/9f8e7d6c5b4a3210`
+
+#### Error Responses
+
+Lease operations return Vault-compatible error formats:
+
+```json
+{
+  "errors": [
+    "lease not found"
+  ]
+}
+```
+
+Common errors:
+- `lease_id is required` (400) - Missing lease ID in request
+- `lease not found` (404) - Lease ID doesn't exist or was already revoked  
+- `lease is not renewable` (400) - Lease cannot be renewed
+- `lease has expired` (400) - Lease has already expired
+- `failed to renew lease: {error}` (500) - Plugin rejected the renewal
 
 ### Web UI
 
